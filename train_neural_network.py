@@ -1,85 +1,85 @@
 from data_set import MyDataset
-from create_neural_network import SimpleCNN
 from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor
-import torch.nn as nn
-import torch
-from sklearn.metrics import classification_report
 from argparse import ArgumentParser
-from tqdm.autonotebook import tqdm
-from torch.utils.tensorboard import SummaryWriter
+from create_neural_network import CNN
+import torch
+import torch.nn as nn
+import tqdm
+from sklearn.metrics import classification_report
+from torchvision.transforms import Compose, Resize, ToTensor
 
 def get_args():
     parser = ArgumentParser()
-    parser.add_argument("--root", "-r",type = str, default = "C:/Users/Admin/PycharmProjects/Deep_learning_beginer/cifar10/cifar-10-batches-py",
-                        help = "Root of the dataset")
-    parser.add_argument("--batch-size","-b",type = int, default = 64, help = "Number of batch size")
-    parser.add_argument("--epochs", "-e",type = int, default = 100, help = "Number of epochs")
-    parser.add_argument("--image-size", "-i",type = int, default = 224, help = "Image size")
-    parser.add_argument("--logging", "-l", type = str, default = "tensorboard")
+    parser.add_argument("--batch_size", type = int, default = 32, help = "Batch size")
+    parser.add_argument("--epochs", type = int, default = 10, help = "Number of epochs")
+    parser.add_argument("--root", type = str, default = "C:/Users/Admin/PycharmProjects/Deep_learning_beginer/cifar10/cifar-10-batches-py",
+                        help = "Root of path dataset")
+    parser.add_argument("--image_size", type = int, default = 224, help = "Image size")
     args = parser.parse_args()
     return args
 
-
 if __name__ == "__main__":
     args = get_args()
-    epochs = args.epochs
     root = args.root
-    train_dataset = MyDataset(root, train=True, transform=ToTensor())
+    transform = Compose([
+        Resize(args.image_size),
+        ToTensor()
+    ])
+    train_dataset = MyDataset(root, train = True, transform = transform)
     training_dataloader = DataLoader(
-        dataset=train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=3,
-        drop_last=True
+        dataset = train_dataset,
+        batch_size = args.batch_size,
+        shuffle = True,
+        drop_last = True,
+        num_workers = 3
     )
-    test_dataset = MyDataset(root, train=False, transform=ToTensor())
-    testing_dataloader = DataLoader(
-        dataset=test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=3,
-        drop_last=False
+    test_dataset = MyDataset(root, train = False, transform = transform)
+    test_dataloader = DataLoader(
+        dataset = test_dataset,
+        batch_size = args.batch_size,
+        shuffle = False,
+        drop_last = False,
+        num_workers = 3
     )
-
-    summary_writer = SummaryWriter(args.logging)
-
-    model = SimpleCNN(num_classes=10)
+    model = CNN(num_classes = 10)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    num_batches = len(training_dataloader)
+    optimizer = torch.optim.SGD(model.parameters(), lr = 0.001, momentum = 0.9)
+    num_epochs = args.epochs
+
     if torch.cuda.is_available():
         model.cuda()
-    for epoch in range(1, args.epochs + 1):
+
+    for epoch in range(num_epochs):
         model.train()
-        progress_bar = tqdm(training_dataloader, colour = "yellow")
-        for i, (images, labels) in enumerate(progress_bar):
+        progress_bar = tqdm.tqdm(training_dataloader, colour = "Green")
+        for iter, (images, labels) in enumerate(training_dataloader):
             if torch.cuda.is_available():
                 images = images.cuda()
                 labels = labels.cuda()
-            # forward
-            outputs = model(images)
-            loss_values = criterion(outputs, labels)
-            progress_bar.set_description("epoch: {}/{}, backward: {}/{}, loss: {:.3f}".format(epoch, epochs, i, num_batches, loss_values))
-            # backward
+            # Forward
+            output = model(images)
+            loss_values = criterion(output, labels)
+
+            progress_bar.set_description("epoch {}/{}, iter {}/{}, loss: {:.3f}".format(epoch + 1, num_epochs,
+                                                                                        iter + 1, len(training_dataloader), loss_values))
+
+            # Backward
             optimizer.zero_grad()
             loss_values.backward()
             optimizer.step()
 
-        # model.eval()
-        # all_predictions = []
-        # all_labels = []
-        # for i, (images, labels) in enumerate(testing_dataloader):
-        #     all_labels.extend(labels)
-        #     if torch.cuda.is_available():
-        #         images = images.cuda()
-        #         labels = labels.cuda()
-        #
-        #     with torch.no_grad():
-        #         predictions = model(images)
-        #         indices = torch.argmax(predictions.cpu(), dim = 1)
-        #         all_predictions.extend(indices)
-        #
-        # all_labels = [label.item() for label in all_labels]
-        # all_predictions = [prediction.item() for prediction in all_predictions]
-        # print(classification_report(all_labels, all_predictions))
+        model.eval()
+        all_predictions = []
+        all_labels = []
+        for iter, (images, labels) in enumerate(test_dataloader):
+            all_labels.extend(labels)
+            if torch.cuda.is_available():
+                images = images.cuda()
+                labels = labels.cuda()
+            with torch.no_grad():
+                predictions = model(images)
+                indices = torch.argmax(predictions.cpu(), dim = 1)
+                all_predictions.extend(indices)
+        all_predictions = [prediction.item() for prediction in all_predictions]
+        all_labels = [label.item() for label in all_labels]
+        print(classification_report(all_labels, all_predictions))
