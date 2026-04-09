@@ -1,0 +1,45 @@
+# ====================================================================
+# LÁ CHẮN DỮ LIỆU AI - FOOTBALL ANALYTICS PROJECT
+# ====================================================================
+
+# 1. Bỏ qua các tệp Trọng số (Weights) - CỰC KỲ QUAN TRỌNG
+# Các file này quá nặng và không nên đưa lên Git
+weights/
+*.pt
+*.engine
+*.onnx
+*.weights
+*.tflite
+
+# 2. Bỏ qua Dữ liệu thô và Kết quả (Data & Output)
+# Không đẩy hàng ngàn tấm ảnh hay video nặng lên GitHub
+data/
+deepball_data/
+SoccerNet/
+tracking-2023/
+video/
+*.mp4
+*.avi
+*.jpg
+*.png
+*.jpeg
+
+# 3. Bỏ qua Môi trường ảo và Cache của Python
+# Các file này mang tính cá nhân trên máy cậu, không dùng chung được
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 4. Bỏ qua các file cấu hình của IDE
+.vscode/
+.idea/
+.DS_Store
+
+# 5. Bỏ qua các file nhật ký và kết quả huấn luyện
+runs/
+logs/
+*.log
