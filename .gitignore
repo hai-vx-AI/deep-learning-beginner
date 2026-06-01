@@ -1,0 +1,138 @@
+```gitignore
+# =========================
+# Python cache / compiled
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# IDE / editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs / temporary files
+# =========================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# =========================
+# Video files
+# =========================
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.wmv
+
+# =========================
+# Output videos / results
+# =========================
+output/
+outputs/
+results/
+runs/
+output.mp4
+screen_output.mp4
+
+# =========================
+# Markdown files
+# =========================
+*.md
+
+# Nếu bạn muốn vẫn upload README.md thì bỏ comment dòng dưới:
+# !README.md
+
+# =========================
+# Data folders
+# =========================
+data/
+dataset/
+datasets/
+raw_data/
+processed_data/
+
+# =========================
+# DeepBall data
+# =========================
+deepball_data/
+DeepBall_data/
+DeepBallData/
+deepball-dataset/
+deepball_dataset/
+
+# =========================
+# SoccerNet
+# =========================
+SoccerNet/
+soccernet/
+SoccerNet-Tracking/
+SoccerNetTracking/
+
+# =========================
+# Video folders
+# =========================
+video/
+videos/
+Video/
+Videos/
+
+# =========================
+# Model weights / exported models
+# Nên ignore vì thường rất nặng
+# =========================
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.weights
+
+# =========================
+# NumPy / ML cache files
+# =========================
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# =========================
+# Build / packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# Test / coverage cache
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+```
