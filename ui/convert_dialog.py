@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from User_interface.styles import ACCENT, WARNING, TEXT_PRIMARY, TEXT_SECONDARY, BG_DARK
+from ui.styles import ACCENT, WARNING, TEXT_PRIMARY, TEXT_SECONDARY, BG_DARK
 
 class ConvertThread(QThread):
     """QThread thực hiện convert .pt → ONNX → TRT engine."""

@@ -17,14 +17,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore  import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui   import QKeyEvent
 
-from User_interface.styles            import STYLESHEET, ACCENT, SUCCESS, WARNING, DANGER, TEXT_SECONDARY
-from User_interface.video_display     import VideoDisplay
-from User_interface.control_panel     import ControlPanel
-from User_interface.convert_dialog    import ConvertDialog
-from User_interface.processing_thread import ProcessingThread
-from User_interface.ring_buffer_log   import RingBufferLog
-from User_interface.screen_overlay    import ScreenOverlay, exclude_window_from_capture
-from User_interface.region_selector   import ScreenRegionSelector
+from ui.styles            import STYLESHEET, ACCENT, SUCCESS, WARNING, DANGER, TEXT_SECONDARY
+from ui.video_display     import VideoDisplay
+from ui.control_panel     import ControlPanel
+from ui.convert_dialog    import ConvertDialog
+from ui.processing_thread import ProcessingThread
+from ui.ring_buffer_log   import RingBufferLog
+from ui.screen_overlay    import ScreenOverlay, exclude_window_from_capture
+from ui.region_selector   import ScreenRegionSelector
 
 class MainWindow(QMainWindow):
     def __init__(self):

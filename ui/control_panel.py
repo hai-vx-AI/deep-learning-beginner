@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox
 
-from User_interface.styles import DANGER
+from ui.styles import DANGER
 
 
 class ControlPanel(QWidget):
