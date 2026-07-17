@@ -54,5 +54,5 @@ def create_yaml(dataset_root: str, yaml_output_path: str):
 if __name__ == "__main__":
     create_yaml(
         dataset_root="data",
-        yaml_output_path="yolov8.yaml",
+        yaml_output_path="yolo26s.yaml",
     )

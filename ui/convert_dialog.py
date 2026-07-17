@@ -9,8 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from ui.styles import ACCENT, WARNING, TEXT_PRIMARY, TEXT_SECONDARY, BG_DARK
-
+from User_interface.styles import ACCENT, WARNING, TEXT_PRIMARY, TEXT_SECONDARY, BG_DARK
 
 class ConvertThread(QThread):
     """QThread thực hiện convert .pt → ONNX → TRT engine."""
@@ -34,10 +33,10 @@ class ConvertThread(QThread):
 
             # ── BƯỚC 1: Load model ──────────────────────────────────────────
             self.progress_updated.emit(5, "Loading PyTorch model...")
-            from football_tracking_station.core.deepball_architecture import DeepBall
+            from football_tracking_station.core.deepball_architecture import DeepBallMobileOne
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model  = DeepBall()
+            model  = DeepBallMobileOne()
             ckpt   = torch.load(self.pt_path, map_location=device)
             state  = ckpt.get("model_state_dict", ckpt)
             model.load_state_dict(state)
@@ -77,7 +76,6 @@ class ConvertThread(QThread):
 
         except Exception as e:
             self.finished_error.emit(str(e))
-
 
 class ConvertDialog(QDialog):
     """Modal dialog hiển thị tiến trình convert."""

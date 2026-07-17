@@ -17,7 +17,7 @@ if __name__ == "__main__":
     #     pre_data(root=source, path="data", is_train=is_train, stride=5)
 
     # ── BƯỚC 2: Tạo YAML cho YOLO ───────────────────────────────────────────
-    # create_yaml(dataset_root="data", yaml_output_path="yolov8.yaml")
+    # create_yaml(dataset_root="football_tracking_station/data", yaml_output_path="football_tracking_station/yolo26s.yaml")
 
     # ── BƯỚC 3: Chuẩn bị dữ liệu DeepBall ──────────────────────────────────
     # source = "SoccerNet/tracking-2023"
@@ -35,18 +35,20 @@ if __name__ == "__main__":
 
     # ── BƯỚC 5: Train DeepBall ───────────────────────────────────────────────
     # train_deepball(
-    #     root_path     = "deepball_data",
-    #     weight_path   = "weights",
+    #     root_path     = "football_tracking_station/deepball_data",
+    #     weight_path   = "football_tracking_station/weights",
     #     epochs        = 50,
     #     batch         = 2,
     #     learning_rate = 1e-3,
     # )
 
-    # train_model(yaml_path="yolov8.yaml", pretrain="")
+    # train_model(yaml_path="football_tracking_station/yolo26s.yaml", pretrain="")
 
 
     # MAIN PROGRAM
-    video_path = "local_video.mp4"
-    yolo_weight = "football_tracking_station/weights/best.pt"
-    deepball_weight = "football_tracking_station/weights/best_deepball_1.pt"
-    processing_yolo(video_path, yolo_weight=yolo_weight, deepball_weight=deepball_weight, n_warmup_colors=100)
+    # video_path = "local_video.mp4"
+    # yolo_weight = "football_tracking_station/weights/best.pt"
+    # deepball_weight = "football_tracking_station/weights/best_deepball_1.pt"
+    # processing_yolo(video_path, yolo_weight=yolo_weight, deepball_weight=deepball_weight, n_warmup_colors=100)
+
+    pass

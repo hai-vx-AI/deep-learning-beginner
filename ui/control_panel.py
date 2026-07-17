@@ -10,12 +10,12 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QRadioButton, QButtonGroup, QSlider, QSpinBox,
-    QProgressBar, QFrame, QFileDialog
+    QProgressBar, QFrame, QFileDialog, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox
 
-from ui.styles import DANGER
+from User_interface.styles import DANGER
 
 
 class ControlPanel(QWidget):
@@ -23,12 +23,16 @@ class ControlPanel(QWidget):
     sig_stop    = pyqtSignal()
     sig_save    = pyqtSignal()
     sig_convert = pyqtSignal(str)
+    sig_source_changed = pyqtSignal(str)   # "video" | "screen"
+    sig_select_region = pyqtSignal()      # ask MainWindow to show region selector
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(384)
         self.setStyleSheet("background-color: #16213e;")
         self._last_can_save = False
+        self._screen_region_logical = None    # Qt logical pixels for overlay
+        self._screen_region_physical = None   # Physical pixels for dxcam/mss capture
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -69,11 +73,21 @@ class ControlPanel(QWidget):
         self.edit_yolo     = self._file_row(layout, "YOLO Weight", "*.pt")
         self.edit_deepball = self._file_row(layout, "DeepBall Weight", "*.pt *.engine")
 
-        layout.addWidget(self._sublabel("Screen region: left, top, width, height"))
-        self.spin_screen_left   = self._spin_row(layout, "Left",   -10000, 10000, 0)
-        self.spin_screen_top    = self._spin_row(layout, "Top",    -10000, 10000, 0)
-        self.spin_screen_width  = self._spin_row(layout, "Width",     320,  3840, 1280)
-        self.spin_screen_height = self._spin_row(layout, "Height",    240,  2160, 720)
+        layout.addWidget(self._sublabel("Screen region: default = full screen"))
+        self.lbl_screen_region = self._sublabel("Region: Full screen (default)")
+        layout.addWidget(self.lbl_screen_region)
+
+        region_row = QHBoxLayout()
+        self.btn_select_region = QPushButton("Select Region")
+        self.btn_reset_region = QPushButton("Full Screen")
+        self.btn_select_region.setFixedHeight(30)
+        self.btn_reset_region.setFixedHeight(30)
+        self.btn_select_region.clicked.connect(self.sig_select_region.emit)
+        self.btn_reset_region.clicked.connect(self.clear_screen_region)
+        region_row.addWidget(self.btn_select_region, 1)
+        region_row.addWidget(self.btn_reset_region, 1)
+        layout.addLayout(region_row)
+
         self.spin_screen_fps    = self._spin_row(layout, "Capture FPS", 5, 60, 30)
 
         return frame
@@ -102,16 +116,43 @@ class ControlPanel(QWidget):
 
     def _on_source_changed(self, source_id: int):
         is_screen = source_id == 1
+        mode = "screen" if is_screen else "video"
+
+        # Video path chỉ cần ở chế độ upload file.
         self.edit_video.setEnabled(not is_screen)
         if hasattr(self.edit_video, "_browse_button"):
             self.edit_video._browse_button.setEnabled(not is_screen)
 
+        # Screen region controls chỉ cần ở chế độ capture màn hình.
         for w in [
-            self.spin_screen_left, self.spin_screen_top,
-            self.spin_screen_width, self.spin_screen_height,
+            self.lbl_screen_region,
+            self.btn_select_region,
+            self.btn_reset_region,
             self.spin_screen_fps,
         ]:
             w.setEnabled(is_screen)
+
+        # Đổi text nút chính để người dùng biết đang chạy luồng nào.
+        if hasattr(self, "btn_start"):
+            self.btn_start.setText("▶  START OVERLAY" if is_screen else "▶  START FILE")
+
+        self.sig_source_changed.emit(mode)
+
+    def set_screen_region(self, logical_region, physical_region):
+        """Receive a selected region from MainWindow's ScreenRegionSelector."""
+        self._screen_region_logical = tuple(int(v) for v in logical_region)
+        self._screen_region_physical = tuple(int(v) for v in physical_region)
+        l, t, r, b = self._screen_region_logical
+        pl, pt, pr, pb = self._screen_region_physical
+        self.lbl_screen_region.setText(
+            f"Region: {l},{t} → {r},{b}  | capture: {pl},{pt} → {pr},{pb}"
+        )
+
+    def clear_screen_region(self):
+        """Use full screen capture/overlay when the user does not select a region."""
+        self._screen_region_logical = None
+        self._screen_region_physical = None
+        self.lbl_screen_region.setText("Region: Full screen (default)")
 
     # ── SECTION 2: DEEPBALL MODE ──────────────────────────────────────────────
 
@@ -270,19 +311,19 @@ class ControlPanel(QWidget):
         return spin
 
     def get_params(self) -> dict:
-        conf = self.slider_conf._min + self.slider_conf.value() / 100 * \
-               (self.slider_conf._max - self.slider_conf._min)
-        left = self.spin_screen_left.value()
-        top = self.spin_screen_top.value()
-        width = self.spin_screen_width.value()
-        height = self.spin_screen_height.value()
+        conf = self.slider_conf._min + self.slider_conf.value() / 100 * (self.slider_conf._max - self.slider_conf._min)
+        is_screen = self.radio_screen_source.isChecked()
 
         return {
-            "input_mode":      "screen" if self.radio_screen_source.isChecked() else "video",
+            "input_mode":      "screen" if is_screen else "video",
             "video_path":      self.edit_video.text().strip(),
-            "screen_region":   (left, top, left + width, top + height),
+            # None means full screen. When selected, keep physical/logical regions separate
+            # to avoid bbox offset on Windows display scaling.
+            "screen_region":   self._screen_region_physical if is_screen else None,
+            "overlay_region":  self._screen_region_logical if is_screen else None,
             "screen_fps":      self.spin_screen_fps.value(),
             "save_screen_output": False,
+            "save_video_output": self.chk_save_video.isChecked() if hasattr(self, "chk_save_video") else False,
             "yolo_weight":     self.edit_yolo.text().strip(),
             "deepball_weight": self.get_deepball_path(),
             "deepball_thresh": round(conf, 2),
@@ -334,7 +375,14 @@ class ControlPanel(QWidget):
         row1.addWidget(self.lbl_pct1)
         layout.addLayout(row1)
 
-        self.btn_start = QPushButton("▶  START")
+        self.chk_save_video = QCheckBox("Save processed video file")
+        self.chk_save_video.setToolTip(
+            "Tắt mặc định để giảm khựng khi preview. Bật nếu bạn muốn xuất output.mp4."
+        )
+        self.chk_save_video.setChecked(False)
+        layout.addWidget(self.chk_save_video)
+
+        self.btn_start = QPushButton("▶  START FILE")
         self.btn_stop  = QPushButton("STOP")
         self.btn_save  = QPushButton("Save Output")
 
@@ -394,16 +442,26 @@ class ControlPanel(QWidget):
             )
             return
 
-        self._last_can_save = params["input_mode"] == "video" or params.get("save_screen_output", False)
-        self.btn_start.setEnabled(False)
-        self.btn_stop.setEnabled(True)
-        self.btn_save.setEnabled(False)
+        self._last_can_save = (params["input_mode"] == "video" and params.get("save_video_output", False)) or params.get("save_screen_output", False)
+        self.set_running()
         self.sig_start.emit(params)
 
     def on_stopped(self):
+        self.force_idle()
+
+    def force_idle(self, can_save=None):
+        """Đưa cụm nút về trạng thái nghỉ, kể cả khi worker lỗi rất sớm."""
+        if can_save is not None:
+            self._last_can_save = bool(can_save)
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
         self.btn_save.setEnabled(self._last_can_save)
+
+    def set_running(self):
+        """Đưa cụm nút về trạng thái đang xử lý."""
+        self.btn_start.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self.btn_save.setEnabled(False)
 
     def update_stats(self, stats: dict):
         pct = stats.get("possession_pct", {0: 50, 1: 50})

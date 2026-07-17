@@ -5,7 +5,7 @@ Chạy: python app.py
 
 import sys
 from PyQt6.QtWidgets import QApplication
-from ui.main_window import MainWindow
+from User_interface.main_window import MainWindow
 
 
 def main():

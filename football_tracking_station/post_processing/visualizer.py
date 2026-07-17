@@ -17,10 +17,10 @@ class Visualizer:
     """
 
     # Màu BGR
-    COLOR_BALL_YOLO    = (0,   255, 255)   # vàng
-    COLOR_BALL_DEEP    = (255, 255, 255)   # trắng
-    COLOR_BALL_PREDICT = (0,   165, 255)   # cam — dự đoán từ last_position
-    COLOR_KEEP_BALL    = (0,   255, 0)     # xanh lá
+    COLOR_BALL_YOLO    = (255, 0, 0) 
+    COLOR_BALL_DEEP    = (0, 255, 0) 
+    COLOR_BALL_PREDICT = (0, 0, 255)   
+    COLOR_KEEP_BALL    = (0, 255, 180)     # xanh lá
     COLOR_POSSESSION   = (0,   255, 255)   # vàng
     COLOR_FPS          = (0,   255, 0)
     COLOR_TEAM = {
@@ -78,19 +78,19 @@ class Visualizer:
             return
 
         if ball_pos.source == "yolo":
-            # Vẽ điểm tâm
+            cv2.circle(frame, (ball_pos.x, ball_pos.y), 15,
+                       (255, 255, 255), -1, cv2.LINE_AA)   # viền trắng
             cv2.circle(frame, (ball_pos.x, ball_pos.y), 8,
-                       self.COLOR_BALL_YOLO, 2, cv2.LINE_AA)
-            cv2.circle(frame, (ball_pos.x, ball_pos.y), 2,
-                       self.COLOR_BALL_YOLO, -1)
+                       self.COLOR_BALL_YOLO, -1, cv2.LINE_AA)
         elif ball_pos.source == "deepball":
+            cv2.circle(frame, (ball_pos.x, ball_pos.y), 15,
+                       (255, 255, 255), -1, cv2.LINE_AA)   # viền trắng
             cv2.circle(frame, (ball_pos.x, ball_pos.y), 10,
-                       self.COLOR_BALL_DEEP, 2, cv2.LINE_AA)
-            cv2.circle(frame, (ball_pos.x, ball_pos.y), 3,
-                       self.COLOR_BALL_DEEP, -1)
-        else:   # predicted / fallback
+                       self.COLOR_BALL_DEEP, -1, cv2.LINE_AA)
+        else:   # predicted
             cv2.circle(frame, (ball_pos.x, ball_pos.y), 8,
-                       self.COLOR_BALL_PREDICT, 1, cv2.LINE_AA)
+                       self.COLOR_BALL_PREDICT, -1, cv2.LINE_AA)
+
 
         # Label confidence nhỏ bên cạnh
         label = f"{ball_pos.source[0].upper()} {ball_pos.confidence:.2f}"

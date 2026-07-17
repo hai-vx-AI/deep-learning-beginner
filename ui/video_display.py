@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButt
 from PyQt6.QtCore    import Qt, QTimer
 from PyQt6.QtGui     import QImage, QPixmap
 
-
 class VideoDisplay(QWidget):
     VIDEO_W = 896
     VIDEO_H = 630

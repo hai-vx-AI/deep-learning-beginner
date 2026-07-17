@@ -6,7 +6,7 @@ import cv2
 import torch
 
 from football_tracking_station.post_processing.detector import Detection, BallPosition
-from football_tracking_station.core.deepball_architecture import DeepBall
+from football_tracking_station.core.deepball_architecture import DeepBallMobileOne
 
 
 class DeepBallTracker:
@@ -48,7 +48,7 @@ class DeepBallTracker:
 
     def _load_pytorch(self, weight_path: str) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model  = DeepBall().to(self.device)
+        self.model  = DeepBallMobileOne().to(self.device)
 
         checkpoint = torch.load(weight_path, map_location=self.device)
         # Hỗ trợ cả 2 format: checkpoint dict hoặc state_dict thẳng
@@ -181,7 +181,34 @@ class DeepBallTracker:
         return heatmap.float().cpu().numpy()
 
     def _infer_trt(self, tensor_np: np.ndarray) -> np.ndarray:
-        self.d_input.copy_(torch.from_numpy(tensor_np))
-        bindings = [int(self.d_input.data_ptr()), int(self.d_output.data_ptr())]
+        """
+        TensorRT inference cho DeepBall.
+
+        tensor_np đầu vào có shape:
+            (9, 256, 256)
+
+        TensorRT engine cần:
+            (1, 9, 256, 256)
+
+        Output engine là logits, nên phải sigmoid giống PyTorch branch.
+        """
+        tensor = (
+            torch.from_numpy(tensor_np)
+            .unsqueeze(0)
+            .contiguous()
+            .to("cuda", dtype=torch.float32)
+        )
+
+        self.d_input.copy_(tensor)
+
+        bindings = [
+            int(self.d_input.data_ptr()),
+            int(self.d_output.data_ptr()),
+        ]
+
         self.trt_context.execute_v2(bindings=bindings)
-        return self.d_output.cpu().numpy()[0, 0]
+
+        # PyTorch branch đang sigmoid(logits), nên TensorRT branch cũng phải sigmoid.
+        heatmap = torch.sigmoid(self.d_output)[0, 0]
+
+        return heatmap.float().cpu().numpy()

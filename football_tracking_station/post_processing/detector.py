@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, List
 import numpy as np
+import torch
 from ultralytics import YOLO
 
 
@@ -72,7 +73,12 @@ class YoloDetector:
 
     def __init__(self, weight_path: str):
         self.model = YOLO(weight_path)
-        print(f"YoloDetector: Đã load model từ {weight_path}")
+        self.device = 0 if torch.cuda.is_available() else "cpu"
+        self.use_half = torch.cuda.is_available()
+        print(
+            f"YoloDetector: Đã load model từ {weight_path} | "
+            f"device={self.device} | half={self.use_half}"
+        )
 
     def run(self, frame: np.ndarray) -> List[Detection]:
         """
@@ -86,7 +92,8 @@ class YoloDetector:
             iou      = 0.5,
             persist  = True,
             verbose  = False,
-            half     = True,
+            device   = self.device,
+            half     = self.use_half,
         )
 
         detections: List[Detection] = []

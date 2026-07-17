@@ -1,35 +1,29 @@
 import torch
 import torch.nn as nn
-from torchvision.models import mobilenet_v3_small, MobileNet_V3_Small_Weights
+import timm
 
-
-class DeepBall(nn.Module):
+class DeepBallMobileOne(nn.Module):
     def __init__(self):
-        super(DeepBall, self).__init__()
-        mobilenet = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
+        super(DeepBallMobileOne, self).__init__()
+        # 1. KHỞI TẠO BACKBONE MOBILEONE TỪ TIMM
+        # - Bản 'mobileone_s0': Tương đương số tham số của MNv3-Small nhưng nhanh hơn.
+        # - in_chans=9: Hệ thống timm sẽ TỰ ĐỘNG nhân bản trọng số pretrained 3 lần và chia 3. 
+        #   (Triệt tiêu hoàn toàn đoạn code can thiệp thủ công dài dòng cũ).
+        # - features_only=True: Tự động cắt bỏ Head phân loại, chỉ giữ lại các feature maps.
 
-        # --- CAN THIỆP ĐẦU VÀO: 3 channels -> 9 channels ---
-        first_conv = mobilenet.features[0][0]
-        new_first_conv = nn.Conv2d(
-            in_channels=9,
-            out_channels=first_conv.out_channels,
-            kernel_size=first_conv.kernel_size,
-            stride=first_conv.stride,
-            padding=first_conv.padding,
-            bias=first_conv.bias is not None
+        self.backbone = timm.create_model(
+            'mobileone_s0',
+            pretrained=True,
+            in_chans=9,
+            features_only=True
         )
-        with torch.no_grad():
-            # Nhân bản trọng số 3 lần, chia 3 để giữ biên độ tín hiệu
-            new_first_conv.weight[:] = first_conv.weight.repeat(1, 3, 1, 1) / 3.0
-            if first_conv.bias is not None:
-                new_first_conv.bias[:] = first_conv.bias
-        mobilenet.features[0][0] = new_first_conv
 
-        self.backbone = mobilenet.features  # output: (B, 576, 8, 8) với input 256x256
+        # Lấy tự động số channels của feature map cuối cùng (Với s0, con số này là 1024)
+        backbone_out_channels = self.backbone.feature_info[-1]['num_chs']
 
         # Neck: giải mã không gian 8 -> 16 -> 32 -> 64
         self.neck = nn.Sequential(
-            nn.ConvTranspose2d(576, 256, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.ConvTranspose2d(backbone_out_channels, 256, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=False),
@@ -40,16 +34,34 @@ class DeepBall(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-        # Head: output là RAW LOGITS (không có Sigmoid ở đây)
-        # BUG FIX: Đã xóa nn.Sigmoid(). focal_loss tự gọi torch.sigmoid() bên trong.
-        # Nếu để Sigmoid ở đây, loss sẽ nhận xác suất và sigmoid lần 2 -> double sigmoid
-        # -> mọi giá trị bị ép về [~0.37, ~0.63], mô hình không thể hội tụ.
         self.head = nn.Sequential(
             nn.Conv2d(64, 1, kernel_size=3, padding=1)
         )
 
     def forward(self, x):
-        x = self.backbone(x)
+        features = self.backbone(x)
+        x = features[-1]
         x = self.neck(x)
         x = self.head(x)
         return x  # raw logits, shape: (B, 1, 64, 64)
+    
+    def switch_to_deploy(self):
+        """
+        Gộp các nhánh MobileOne trong backbone nếu module hỗ trợ reparameterize().
+        Lưu ý: neck và head hiện tại không được fuse bởi hàm này.
+        """
+        self.eval()
+
+        fused_count = 0
+
+        for module in self.modules():
+            if hasattr(module, "reparameterize") and callable(module.reparameterize):
+                module.reparameterize()
+                fused_count += 1
+
+        print(f"Trạng thái: Đã gọi reparameterize() cho {fused_count} module.")
+
+        if fused_count == 0:
+            print("CẢNH BÁO: Không tìm thấy module nào có reparameterize(). Có thể backbone timm không hỗ trợ fuse theo cách này.")
+        else:
+            print("Model đã được chuyển sang dạng deploy/fused.")

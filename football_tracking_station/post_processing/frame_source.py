@@ -25,6 +25,8 @@ Region = Tuple[int, int, int, int]  # left, top, right, bottom
 class FileFrameSource:
     """Read BGR frames from a video file with cv2.VideoCapture."""
 
+    is_realtime = False
+
     def __init__(self, video_path: str):
         self.video_path = str(video_path)
         if not Path(self.video_path).is_file():
@@ -53,6 +55,8 @@ class ScreenFrameSource:
     region format: (left, top, right, bottom)
     Example: (200, 120, 1480, 840) for a 1280x720 YouTube area.
     """
+
+    is_realtime = True
 
     def __init__(self, region: Optional[Region] = None, fps: int = 30):
         self.region = region

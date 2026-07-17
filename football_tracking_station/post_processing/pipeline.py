@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from queue import Queue, Full
 from threading import Thread
-from typing import Dict
+from typing import Callable, Dict, Optional
 
 from football_tracking_station.post_processing.detector        import YoloDetector, BallPosition
 from football_tracking_station.post_processing.tracker         import DeepBallTracker
@@ -21,25 +21,34 @@ class VideoProcessor:
       - video file
       - screen capture region
 
+    Screen Capture mới:
+      - Không gửi processed frame về QLabel preview nữa.
+      - Chỉ gửi overlay_data nhẹ gồm bbox/ball/team/fps về UI thread.
+      - OverlayWindow trong suốt sẽ vẽ trực tiếp lên màn hình laptop.
+
     Nguyên tắc tốc độ:
-      - UI queue đầy -> drop preview frame, không block AI thread.
+      - UI queue đầy -> thay frame cũ bằng frame mới, không block AI thread.
       - File writer queue đầy -> drop output frame, không block AI thread.
       - Screen mode mặc định không ghi output để giữ FPS ổn định.
     """
 
     def __init__(self,
-                 yolo_weight:     str,
-                 trt_weight:      str,
-                 dis_ball_player: int        = 100,
-                 n_warmup_colors: int        = 100,
-                 deepball_thresh: float      = 0.5,
-                 report_interval: int        = 100,
-                 vote_window:     int        = 15,
-                 ui_queue:        Queue      = None):
+                 yolo_weight:      str,
+                 trt_weight:       str,
+                 dis_ball_player:  int        = 100,
+                 n_warmup_colors:  int        = 100,
+                 deepball_thresh:  float      = 0.5,
+                 report_interval:  int        = 100,
+                 vote_window:      int        = 15,
+                 ui_queue:         Queue      = None,
+                 stats_callback:   Optional[Callable[[dict], None]] = None,
+                 overlay_callback: Optional[Callable[[dict], None]] = None):
 
-        self.dis_ball_player = dis_ball_player
-        self.report_interval = report_interval
-        self.ui_queue        = ui_queue
+        self.dis_ball_player  = dis_ball_player
+        self.report_interval  = report_interval
+        self.ui_queue         = ui_queue
+        self.stats_callback   = stats_callback
+        self.overlay_callback = overlay_callback
 
         self.detector   = YoloDetector(yolo_weight)
         self.tracker    = DeepBallTracker(trt_weight, threshold=deepball_thresh)
@@ -72,14 +81,16 @@ class VideoProcessor:
             "fps":         round(self._current_fps, 1),
         }
 
-    def process(self, video_path: str, output_path: str = "output.mp4") -> None:
-        """Video file mode."""
+    def process(self, video_path: str, output_path: str = "output.mp4",
+                save_output: bool = False) -> None:
+        """Video file mode: draw into preview frame as before."""
         source = FileFrameSource(video_path)
         self.process_source(
             source=source,
             output_path=output_path,
-            save_output=True,
+            save_output=save_output,
             source_name=video_path,
+            use_overlay=False,
         )
 
     def process_screen(self,
@@ -87,20 +98,22 @@ class VideoProcessor:
                        fps: int = 30,
                        output_path: str = "screen_output.mp4",
                        save_output: bool = False) -> None:
-        """Realtime screen capture mode."""
+        """Realtime screen capture mode: send overlay data to transparent window."""
         source = ScreenFrameSource(region=region, fps=fps)
         self.process_source(
             source=source,
             output_path=output_path,
             save_output=save_output,
             source_name=f"screen region={region}",
+            use_overlay=True,
         )
 
     def process_source(self,
                        source,
                        output_path: str = "output.mp4",
                        save_output: bool = True,
-                       source_name: str = "source") -> None:
+                       source_name: str = "source",
+                       use_overlay: bool = False) -> None:
         frame_w = int(source.width)
         frame_h = int(source.height)
         fps_src = float(source.fps or 30.0)
@@ -125,6 +138,8 @@ class VideoProcessor:
         self.frame_count = 0
         self.profiler.reset()
         start_time = time.perf_counter()
+        last_stats_emit = start_time
+        last_overlay_emit = start_time
 
         print(f"Bắt đầu: {source_name} [{frame_w}×{frame_h} @ {fps_src:.0f}fps]")
 
@@ -134,8 +149,8 @@ class VideoProcessor:
                 ok, frame = source.read()
                 self.profiler.stop("1. Read frame")
                 if not ok or frame is None:
-                    # Screen mode có thể thiếu frame tạm thời; không kết thúc luôn.
-                    if total == 0:
+                    # Chỉ realtime source mới được chờ frame tiếp; file video thì kết thúc.
+                    if getattr(source, "is_realtime", False):
                         time.sleep(0.001)
                         continue
                     break
@@ -171,41 +186,71 @@ class VideoProcessor:
                         self.possession[team] = self.possession.get(team, 0) + 1
                 self.profiler.stop("5. Possession")
 
-                self.profiler.start("6. Draw")
                 elapsed = time.perf_counter() - start_time
                 self._current_fps = self.frame_count / elapsed if elapsed > 0 else 0.0
 
-                self.visualizer.draw_all(
-                    frame=frame,
-                    players=players,
-                    ball_pos=ball_pos,
-                    team_map=self.team_clf.team_map,
-                    closest_pid=closest_pid,
-                    possession=self.possession,
-                    fps=self._current_fps,
-                    frame_count=self.frame_count,
-                )
-                self.profiler.stop("6. Draw")
+                self.profiler.start("6. Overlay/Draw")
 
-                # Preview UI: không được block AI thread.
-                if self.ui_queue is not None:
-                    try:
-                        self.ui_queue.put_nowait(frame)
-                    except Full:
-                        pass
+                # Screen mode: gửi dữ liệu nhẹ để overlay vẽ trực tiếp lên màn hình.
+                now = time.perf_counter()
+                if use_overlay and self.overlay_callback is not None:
+                    # Không cần spam Qt signal quá dày; 30 Hz là đủ cho overlay.
+                    if now - last_overlay_emit >= (1.0 / 30.0):
+                        self.overlay_callback(
+                            self._make_overlay_data(
+                                frame_w=frame_w,
+                                frame_h=frame_h,
+                                players=players,
+                                ball_pos=ball_pos,
+                                closest_pid=closest_pid,
+                            )
+                        )
+                        last_overlay_emit = now
+
+                # Video mode vẫn preview frame đã vẽ trong UI.
+                # Screen mode chỉ vẽ vào frame nếu người dùng bật save_output.
+                should_draw_frame = (not use_overlay) or save_output
+                if should_draw_frame:
+                    self.visualizer.draw_all(
+                        frame=frame,
+                        players=players,
+                        ball_pos=ball_pos,
+                        team_map=self.team_clf.team_map,
+                        closest_pid=closest_pid,
+                        possession=self.possession,
+                        fps=self._current_fps,
+                        frame_count=self.frame_count,
+                    )
+
+                self.profiler.stop("6. Overlay/Draw")
+
+                # Preview UI chỉ dùng cho Video File. Screen Capture không preview
+                # để tránh capture ngược chính UI chính.
+                if (not use_overlay) and self.ui_queue is not None:
+                    self._push_latest_preview(frame)
 
                 # Ghi file: không được block AI thread.
                 if save_output and file_queue is not None:
                     try:
-                        # Writer chạy thread khác; copy để tránh buffer frame bị thay đổi.
                         file_queue.put_nowait(frame.copy())
                     except Full:
                         pass
+
+                if self.stats_callback is not None and now - last_stats_emit >= 0.5:
+                    self.stats_callback(self.get_stats())
+                    last_stats_emit = now
 
                 if self.report_interval > 0 and self.frame_count % self.report_interval == 0:
                     self.profiler.report()
 
         finally:
+            # Clear overlay visually before the UI closes it.
+            if use_overlay and self.overlay_callback is not None:
+                try:
+                    self.overlay_callback({"players": [], "ball": None, "closest_pid": None})
+                except Exception:
+                    pass
+
             source.release()
             if save_output and file_queue is not None:
                 file_queue.put(None)
@@ -235,6 +280,56 @@ class VideoProcessor:
                 best_id   = det.track_id
         return best_id if best_dist <= self.dis_ball_player else None
 
+    def _make_overlay_data(self, frame_w, frame_h, players, ball_pos, closest_pid) -> dict:
+        payload_players = []
+        for det in players:
+            payload_players.append({
+                "track_id": int(det.track_id),
+                "class_id": int(det.class_id),
+                "x1": int(det.x1),
+                "y1": int(det.y1),
+                "x2": int(det.x2),
+                "y2": int(det.y2),
+                "foot_x": int(det.foot_x),
+                "foot_y": int(det.foot_y),
+                "team": self.team_clf.get_team(det.track_id),
+                "conf": float(det.conf),
+            })
+
+        payload_ball = None
+        if ball_pos is not None:
+            payload_ball = {
+                "x": int(ball_pos.x),
+                "y": int(ball_pos.y),
+                "source": str(ball_pos.source),
+                "confidence": float(ball_pos.confidence),
+            }
+
+        stats = self.get_stats()
+        return {
+            "frame_w": int(frame_w),
+            "frame_h": int(frame_h),
+            "players": payload_players,
+            "ball": payload_ball,
+            "closest_pid": int(closest_pid) if closest_pid is not None else None,
+            "possession_pct": stats.get("possession_pct", {0: 50, 1: 50}),
+            "fps": float(self._current_fps),
+            "frame_count": int(self.frame_count),
+        }
+
+    def _push_latest_preview(self, frame) -> None:
+        try:
+            self.ui_queue.put_nowait(frame)
+        except Full:
+            try:
+                self.ui_queue.get_nowait()
+            except Exception:
+                pass
+            try:
+                self.ui_queue.put_nowait(frame)
+            except Full:
+                pass
+
     @staticmethod
     def _writer_worker(writer, queue):
         while True:
@@ -258,4 +353,4 @@ def processing_yolo(video_path, yolo_weight, deepball_weight,
         n_warmup_colors=n_warmup_colors,
         deepball_thresh=deepball_thresh,
     )
-    processor.process(video_path, output_path)
+    processor.process(video_path, output_path, save_output=True)

@@ -5,7 +5,7 @@ from ultralytics import YOLO
 
 def train_model(yaml_path: str, pretrain: str = ""):
     """
-    Finetune YOLOv8 trên dataset football.
+    Finetune YOLO26s trên dataset football.
 
     Args:
         yaml_path: Đường dẫn tới file YAML dataset (tạo bởi create_data/create_yaml.py).
@@ -22,7 +22,7 @@ def train_model(yaml_path: str, pretrain: str = ""):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Bạn đang sử dụng thiết bị: {device}")
 
-    model = YOLO(pretrain) if pretrain else YOLO("yolov8s.pt")
+    model = YOLO(pretrain) if pretrain else YOLO("yolo26s.pt")
 
     model.train(
         data    = yaml_path,
@@ -48,13 +48,13 @@ def train_model(yaml_path: str, pretrain: str = ""):
         perspective = 0.0,   # Tắt phối cảnh 3D
         flipud      = 0.0,   # Không lật dọc
         fliplr      = 0.5,   # Giữ lật ngang
-        box         = 7.5,
+        box = 7.5,
     )
     print("Huấn luyện YOLO hoàn tất!")
 
 
 if __name__ == "__main__":
     train_model(
-        yaml_path="yolov8.yaml",
+        yaml_path="D:\.vscode\football_distance_last\football_tracking_station\yolo26s.yaml",
         pretrain="",  # để trống để dùng yolov8s.pt mặc định
     )
