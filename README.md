@@ -1,52 +1,78 @@
 # Football Distance
 
-## Cài đặt và chạy dự án
+Ứng dụng phân tích và theo dõi đối tượng trong video bóng đá.
+
+## Yêu cầu
+
+- Windows 10 hoặc Windows 11
+- Python 3.12 64-bit
+- Git
+
+Kiểm tra Python 3.12:
+
+```bash
+py -3.12 --version
+```
+
+## Cài đặt
 
 ### 1. Clone mã nguồn
 
 ```bash
 git clone https://github.com/hai-vx-AI/football_distance.git
-```
-
-Di chuyển vào thư mục dự án:
-
-```bash
 cd football_distance
 ```
 
-### 2. Tạo môi trường ảo
+### 2. Tạo môi trường ảo bằng Python 3.12
 
 ```bash
-python -m venv .venv
+py -3.12 -m venv .venv
 ```
 
-Kích hoạt môi trường ảo trên Windows:
+### 3. Kích hoạt môi trường ảo
 
-```bash
+PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Command Prompt:
+
+```cmd
 .venv\Scripts\activate
 ```
 
-Trên Linux hoặc macOS:
+Nếu PowerShell chặn việc kích hoạt môi trường, chạy:
 
-```bash
-source .venv/bin/activate
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
 ```
 
-### 3. Cài đặt thư viện
+### 4. Cài đặt thư viện
 
 ```bash
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
 ```
 
-### 4. Chạy ứng dụng
+### 5. Chạy ứng dụng
 
 ```bash
 python app.py
 ```
 
-## Cập nhật mã nguồn
+## Chạy lại ứng dụng
+
+Tại thư mục dự án, kích hoạt môi trường:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Sau đó chạy:
 
 ```bash
-git pull origin main
+python app.py
 ```
