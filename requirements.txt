@@ -8,6 +8,7 @@ PyQt6>=6.6.0
 # =========================
 opencv-python>=4.8.0
 numpy>=1.24.0
+Pillow>=10.0.0
 
 # =========================
 # Deep Learning / YOLO
@@ -15,6 +16,7 @@ numpy>=1.24.0
 ultralytics>=8.0.0
 torch>=2.0.0
 torchvision>=0.15.0
+timm>=0.9.0
 
 # =========================
 # Machine Learning
@@ -22,13 +24,14 @@ torchvision>=0.15.0
 scikit-learn>=1.3.0
 
 # =========================
-# ONNX & TensorRT (Model Conversion)
+# ONNX & TensorRT
+# Model conversion and inference
 # =========================
 onnx>=1.14.0
 tensorrt>=8.6.0
 
 # =========================
-# Screen capture mode
+# Screen Capture
 # dxcam: fast Windows screen capture
 # mss: fallback screen capture
 # =========================
@@ -39,4 +42,3 @@ mss>=9.0.0
 # Utilities
 # =========================
 tqdm>=4.65.0
-Pillow>=10.0.0
