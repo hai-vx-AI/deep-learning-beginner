@@ -10,69 +10,89 @@
 
 Kiểm tra Python 3.12:
 
-```bash
+```powershell
 py -3.12 --version
 ```
 
 ## Cài đặt
 
+Mở PowerShell hoặc Terminal tại thư mục muốn lưu dự án.
+
 ### 1. Clone mã nguồn
 
-```bash
+```powershell
 git clone https://github.com/hai-vx-AI/football_distance.git
-cd football_distance
 ```
 
-### 2. Tạo môi trường ảo bằng Python 3.12
+Sau khi clone, giữ nguyên Terminal tại thư mục hiện tại. Không di chuyển vào thư mục `football_distance`.
 
-```bash
+Cấu trúc thư mục sẽ có dạng:
+
+```text
+thu_muc_hien_tai/
+└── football_distance/
+```
+
+### 2. Tạo môi trường ảo Python 3.12
+
+```powershell
 py -3.12 -m venv .venv
 ```
 
-### 3. Kích hoạt môi trường ảo
+Sau bước này, cấu trúc thư mục sẽ là:
 
-PowerShell:
+```text
+thu_muc_hien_tai/
+├── .venv/
+└── football_distance/
+```
+
+### 3. Cài đặt thư viện
+
+Không cần kích hoạt môi trường ảo. Chạy trực tiếp Python trong `.venv`:
 
 ```powershell
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
 ```
 
-Command Prompt:
-
-```cmd
-.venv\Scripts\activate
-```
-
-Nếu PowerShell chặn việc kích hoạt môi trường, chạy:
+Cài đặt các thư viện của dự án:
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\python.exe -m pip install -r .\football_distance\requirements.txt
 ```
 
-### 4. Cài đặt thư viện
+### 4. Chạy ứng dụng
 
-```bash
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -r requirements.txt
-```
-
-### 5. Chạy ứng dụng
-
-```bash
-python app.py
+```powershell
+.\.venv\Scripts\python.exe .\football_distance\app.py
 ```
 
 ## Chạy lại ứng dụng
 
-Tại thư mục dự án, kích hoạt môi trường:
+Ở những lần sử dụng tiếp theo, mở Terminal tại thư mục chứa `.venv` và `football_distance`, sau đó chạy:
 
 ```powershell
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\python.exe .\football_distance\app.py
 ```
 
-Sau đó chạy:
+## Mở dự án bằng Visual Studio Code
 
-```bash
-python app.py
+Mở thư mục cha chứa cả `.venv` và `football_distance`:
+
+```powershell
+code .
+```
+
+Visual Studio Code sẽ sử dụng môi trường:
+
+```text
+.venv\Scripts\python.exe
+```
+
+Nếu VS Code chưa tự nhận diện, chọn:
+
+```text
+Ctrl + Shift + P
+→ Python: Select Interpreter
+→ .venv\Scripts\python.exe
 ```
